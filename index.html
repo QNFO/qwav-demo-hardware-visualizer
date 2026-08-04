@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hardware Pathway Visualizer</title>
+<style>
+  :root {
+    --ink: #06070d; --ink-2: #0a0d19; --panel: #0d1120; --line: #1b2540; --line-2: #2a3a66;
+    --text: #dbe6ff; --text-dim: #8195c0; --cyan: #00e5ff; --amber: #ffb300; --green: #00ffa3;
+    --red: #ff3b5c; --violet: #b388ff;
+    --mono: "Cascadia Code","Consolas","SFMono-Regular",monospace; --ui: "Bahnschrift","Segoe UI","Arial Narrow",sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: radial-gradient(1100px 560px at 72% -12%, rgba(0,229,255,0.05), transparent 60%), radial-gradient(800px 480px at 8% 112%, rgba(255,59,92,0.04), transparent 55%), var(--ink); color: var(--text); font-family: var(--ui); min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ""; position: fixed; inset: 0; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"); opacity: 0.5; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 24px 28px 60px; position: relative; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; padding: 12px 0 26px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .kicker { font-family: var(--mono); font-size: 12px; letter-spacing: 0.35em; color: var(--amber); text-transform: uppercase; }
+  h1 { font-size: clamp(26px, 4vw, 44px); font-weight: 500; letter-spacing: 0.01em; margin-top: 6px; line-height: 1.05; }
+  h1 .hl { color: var(--amber); font-weight: 700; } h1 .hl2 { color: var(--cyan); font-weight: 700; }
+  .sub { color: var(--text-dim); font-size: 14px; margin-top: 8px; max-width: 660px; line-height: 1.5; }
+  .badge { font-family: var(--mono); font-size: 11px; color: var(--green); border: 1px solid rgba(0,255,163,0.35); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+  .stage { display: grid; grid-template-columns: 300px 1fr; gap: 18px; margin-top: 22px; }
+  @media (max-width: 920px) { .stage { grid-template-columns: 1fr; } }
+  .panel { background: linear-gradient(180deg, var(--panel), var(--ink-2)); border: 1px solid var(--line); border-radius: 12px; padding: 20px; height: fit-content; }
+  .panel h3 { font-size: 12px; letter-spacing: 0.25em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 14px; }
+  .ctl { margin-bottom: 18px; } .ctl label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; color: var(--text); }
+  .ctl .val { font-family: var(--mono); color: var(--amber); }
+  input[type="range"] { -webkit-appearance: none; width: 100%; height: 4px; background: var(--line-2); border-radius: 4px; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--amber); border: 2px solid var(--ink); cursor: pointer; box-shadow: 0 0 12px rgba(255,179,0,0.6); }
+  .run-btn { width: 100%; margin-top: 6px; background: linear-gradient(135deg, var(--amber), #ff8f00); color: var(--ink); border: none; border-radius: 10px; padding: 13px; font-family: var(--ui); font-weight: 700; font-size: 14px; letter-spacing: 0.08em; cursor: pointer; text-transform: uppercase; }
+  .run-btn:hover { box-shadow: 0 0 24px rgba(255,179,0,0.35); }
+  .mode-note { margin-top: 16px; font-size: 12px; color: var(--text-dim); line-height: 1.55; border-top: 1px solid var(--line); padding-top: 14px; }
+  .mode-note code { font-family: var(--mono); color: var(--amber); font-size: 11px; }
+  .demo { background: var(--ink-2); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; position: relative; min-height: 560px; display: flex; flex-direction: column; }
+  .toolbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); background: rgba(10,13,25,0.85); gap: 10px; flex-wrap: wrap; }
+  .toolbar .t-label { font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: 0.18em; text-transform: uppercase; }
+  .toolbar .t-status { font-family: var(--mono); font-size: 11px; color: var(--amber); }
+  #scene { width: 100%; flex: 1; display: block; cursor: grab; background: radial-gradient(760px 420px at 50% 18%, rgba(255,179,0,0.04), transparent 62%); }
+  #scene:active { cursor: grabbing; }
+  .overlay-note { position: absolute; left: 14px; bottom: 14px; font-family: var(--mono); font-size: 11px; color: var(--text-dim); background: rgba(6,7,13,0.78); border: 1px solid var(--line); padding: 6px 10px; border-radius: 6px; pointer-events: none; }
+  .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-top: 18px; }
+  .readout { background: linear-gradient(180deg, var(--panel), var(--ink-2)); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .readout .r-label { font-size: 11px; letter-spacing: 0.18em; color: var(--text-dim); text-transform: uppercase; }
+  .readout .r-value { font-family: var(--mono); font-size: 22px; margin-top: 6px; color: var(--amber); }
+  .readout .r-sub { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+  .readout.good .r-value { color: var(--green); } .readout.violet .r-value { color: var(--violet); }
+  .charts { display: grid; grid-template-columns: 1.5fr 1fr; gap: 18px; margin-top: 18px; }
+  @media (max-width: 920px) { .charts { grid-template-columns: 1fr; } }
+  .card { background: linear-gradient(180deg, var(--panel), var(--ink-2)); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .card h4 { font-size: 12px; letter-spacing: 0.22em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+  canvas.plt { width: 100%; height: 250px; display: block; }
+  .explain { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 920px) { .explain { grid-template-columns: 1fr; } }
+  .explain .card p { font-size: 14px; line-height: 1.65; }
+  .explain .card .term { color: var(--amber); font-family: var(--mono); font-size: 13px; }
+  .explain .card .math { display: block; font-family: var(--mono); font-size: 13px; color: var(--violet); background: rgba(179,136,255,0.06); border: 1px solid rgba(179,136,255,0.18); border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
+  footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  footer a { color: var(--cyan); text-decoration: none; } .fn { font-size: 11px; color: var(--text-dim); line-height: 1.6; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="kicker">QWAV · Interactive Artifact A5</div>
+      <h1>Hardware <span class="hl">Pathway</span> <span class="hl2">Visualizer</span></h1>
+      <p class="sub">A 40-atom neutral-atom layout mapped onto a tree. Drag to rotate the 3D scene, hover any atom to see its coordinates and role, and toggle the Rydberg blockade gate layer to see which pairs are coupled. "40 atoms at 4K" becomes explorable geometry.</p>
+    </div>
+    <div class="badge">40-ATOM · Rydberg blockade</div>
+  </header>
+  <div class="stage">
+    <aside class="panel">
+      <h3>Scene Controls</h3>
+      <div class="ctl"><label>Atoms <span class="val" id="nVal">40</span></label>
+        <input type="range" id="nSlider" min="13" max="121" step="6" value="40"></div>
+      <div class="ctl"><label>Rydberg blockade gates <span class="val" id="gateVal">ON</span></label>
+        <div class="seg" id="gateSeg"><button data-g="1" class="active">ON</button><button data-g="0">OFF</button></div></div>
+      <div class="ctl"><label>Rotation <span class="val" id="rotVal">auto</span></label>
+        <div class="seg" id="rotSeg"><button data-r="auto" class="active">auto</button><button data-r="0">stop</button></div></div>
+      <button class="run-btn" id="resetBtn">Reset View</button>
+      <div class="mode-note"><strong>Layout:</strong> atoms sit on the vertices of a depth-3 Bruhat-Tits-inspired tree (p=3, levels 1+3+9+27 = 40). Edge length = inter-atom spacing (~3–6 µm). Rydberg blockade gates connect atoms sharing a parent vertex.</div>
+    </aside>
+    <section class="demo">
+      <div class="toolbar"><span class="t-label">neutral-atom tree lattice · 3D</span><span class="t-status" id="sceneStatus">drag to rotate · hover an atom</span></div>
+      <canvas id="scene"></canvas>
+      <div class="overlay-note" id="overlayNote">40 atoms · 3 levels · Rydberg gates</div>
+    </section>
+  </div>
+  <div class="readouts">
+    <div class="readout"><div class="r-label">Atoms placed</div><div class="r-value" id="atomsVal">40</div><div class="r-sub">tree vertices (1+3+9+27)</div></div>
+    <div class="readout good"><div class="r-label">Rydberg gate pairs</div><div class="r-value" id="gatesVal">—</div><div class="r-sub">parent-child atom pairs</div></div>
+    <div class="readout"><div class="r-label">Tree depth</div><div class="r-value" id="depthVal">3</div><div class="r-sub">p=3 branching</div></div>
+    <div class="readout violet"><div class="r-label">Hovered atom</div><div class="r-value" id="hoverVal">—</div><div class="r-sub">role / coordinates</div></div>
+  </div>
+  <div class="charts">
+    <div class="card"><h4>Layout projection (x-y plane)</h4><canvas class="plt" id="projChart"></canvas></div>
+    <div class="card"><h4>What you're seeing</h4>
+      <p style="font-size:13px;line-height:1.65;color:var(--text);">Each atom is a <span class="term">vertex</span> of a tree. Parent–child pairs are coupled by <span class="term">Rydberg blockade gates</span> — a two-qubit gate between the atom and its tree-neighbor. The tree is the same Bruhat-Tits structure from Artifacts A1 and A3, now made physical.</p>
+      <p style="margin-top:10px;font-size:13px;line-height:1.65;color:var(--text);">Hover any atom to read its coordinates; toggle the gate layer to see the edge set.</p></div>
+  </div>
+  <div class="explain">
+    <div class="card"><h4>The tree-to-hardware mapping</h4>
+      <p>A depth-<span class="term">d</span>, branching-<span class="term">p</span> tree has <span class="math">(p<sup>d+1</sup>−1)/(p−1)</span> vertices. For p=3, d=3: 1+3+9+27 = <span class="term">40</span> — the 40-atom layout.</p>
+      <p>Rydberg blockade couples atoms within the Rydberg radius, which is the natural physical realization of a <span class="term">tree edge</span>: only adjacent vertices are coupled. Errors are confined to subtrees (see A1).</p></div>
+    <div class="card"><h4>Why 4K matters</h4>
+      <p>Neutral-atom arrays operate at <span class="term">~4 K</span> (or lower), unlike dilution-fridge superconducting qubits at ~15 mK. The tree layout is chosen so Rydberg gate pairs share a parent vertex — minimizing long-range interactions and keeping the ultrametric (hierarchical) error structure intact.</p>
+      <p style="margin-top:10px;color:var(--text-dim);font-size:13px;">This is an interactive schematic, not a fabrication of measured hardware results.†</p></div>
+  </div>
+  <footer><span>QWAV Hardware Pathway Visualizer · Strategy 3.0 · Artifact A5</span><span>Generated with <a href="https://github.com/ThinkInAIXYZ/deepchat">DeepChat</a> | All page content is AI-generated and for reference only</span></footer>
+  <p class="fn">† Design target / illustrative layout based on Symmetric Extension §Hardware Specification: a 40-atom neutral-atom tree lattice with Rydberg blockade gates on parent-child pairs. Not yet fabricated or demonstrated in physical hardware.</p>
+</div>
+<script>
+"use strict";
+const S = { n: 40, gatesOn: true, autoRotate: true, rotY: 0.5, atoms: [], gates: [], hover: null };
+const sceneCv = document.getElementById("scene");
+const sctx = sceneCv.getContext("2d");
+const projCv = document.getElementById("projChart");
+const pctx = projCv.getContext("2d");
+function fitCanvas(cv, ctx) { const r = cv.getBoundingClientRect(); const dpr = Math.min(window.devicePixelRatio || 1, 2); const w = Math.max(200, Math.floor(r.width)); const h = Math.max(200, Math.floor(r.height)); if (cv.width !== w*dpr || cv.height !== h*dpr) { cv.width = w*dpr; cv.height = h*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); } return { w, h }; }
+function buildAtoms() {
+  const p = 3, d = 3;
+  const atoms = [];
+  atoms.push({ x: 0, y: 0, z: 0, depth: 0, id: 0, parent: -1 });
+  let nextId = 1;
+  function place(parent, depth, slot) {
+    if (depth >= d + 1) return;
+    const ang = slot * 2.1;
+    const r = 1.0 * (depth + 1) * 0.9;
+    const x = parent.x + r * Math.cos(ang) * (depth % 2 === 0 ? 1 : 0.6);
+    const y = parent.y + r * Math.sin(ang) * 0.6;
+    const z = parent.z + (depth % 3 === 0 ? 0.6 : -0.4);
+    const atom = { x, y, z, depth, id: nextId++, parent: parent.id };
+    atoms.push(atom);
+    for (let k = 0; k < p; k++) place(atom, depth + 1, slot * p + k);
+  }
+  for (let k = 0; k < p; k++) place(atoms[0], 1, k);
+  if (atoms.length > S.n) atoms.length = S.n;
+  atoms.forEach((a, i) => { a.id = i; });
+  const gates = [];
+  atoms.forEach(a => { if (a.parent >= 0 && a.parent < atoms.length) gates.push([a.parent, a.id]); });
+  return { atoms, gates };
+}
+function project(a, rotY) { const cos = Math.cos(rotY), sin = Math.sin(rotY); const xr = a.x * cos - a.z * sin; const zr = a.x * sin + a.z * cos; const f = 3.0; const scale = f / (f + zr); return { sx: xr * scale, sy: a.y * scale, sz: zr, scale }; }
+function renderScene() {
+  const { w, h } = fitCanvas(sceneCv, sctx);
+  sctx.clearRect(0, 0, w, h);
+  const cx0 = w / 2, cy0 = h / 2 + 10;
+  const viewScale = Math.min(w, h) / 4.6;
+  if (S.gatesOn) S.gates.forEach(([i, j]) => { const a = project(S.atoms[i], S.rotY), b = project(S.atoms[j], S.rotY); const ax = cx0+a.sx*viewScale, ay = cy0+a.sy*viewScale, bx = cx0+b.sx*viewScale, by = cy0+b.sy*viewScale; sctx.strokeStyle = "rgba(255,179,0,0.28)"; sctx.lineWidth = 1; sctx.beginPath(); sctx.moveTo(ax,ay); sctx.lineTo(bx,by); sctx.stroke(); });
+  const sorted = S.atoms.slice().sort((a, b) => project(b, S.rotY).sz - project(a, S.rotY).sz);
+  sorted.forEach(a => { const pr = project(a, S.rotY); const x = cx0+pr.sx*viewScale, y = cy0+pr.sy*viewScale; const isHover = S.hover === a.id; const r = (a.depth === 0 ? 6 : 3.2 + a.depth*0.5) * pr.scale; sctx.beginPath(); sctx.arc(x, y, Math.max(2.5, r), 0, Math.PI*2); sctx.fillStyle = isHover ? "#ffb300" : (a.depth === 0 ? "#00e5ff" : "#00ffa3"); sctx.shadowColor = sctx.fillStyle; sctx.shadowBlur = isHover ? 16 : 6; sctx.fill(); sctx.shadowBlur = 0; });
+  sctx.fillStyle = "#8195c0"; sctx.font = "10px Cascadia Code, Consolas, monospace"; sctx.textAlign = "left"; sctx.fillText(`rotY=${S.rotY.toFixed(2)}  atoms=${S.atoms.length}`, 14, 20);
+}
+function renderProj() {
+  const { w, h } = fitCanvas(projCv, pctx);
+  pctx.clearRect(0, 0, w, h);
+  const cx0 = w/2, cy0 = h/2, viewScale = Math.min(w, h) / 5.0;
+  S.atoms.forEach(a => { const x = cx0+a.x*viewScale, y = cy0+a.y*viewScale, isHover = S.hover === a.id; pctx.beginPath(); pctx.arc(x, y, isHover ? 5 : 2.8, 0, Math.PI*2); pctx.fillStyle = isHover ? "#ffb300" : (a.depth === 0 ? "#00e5ff" : "#00ffa3"); pctx.fill(); });
+  pctx.fillStyle = "#8195c0"; pctx.font = "10px Cascadia Code, Consolas, monospace"; pctx.textAlign = "center"; pctx.fillText("x-y plane projection", w/2, h-8);
+}
+function updateReadouts() {
+  document.getElementById("nVal").textContent = S.atoms.length;
+  document.getElementById("gatesVal").textContent = S.gatesOn ? S.gates.length : "off";
+  document.getElementById("depthVal").textContent = 3;
+  document.getElementById("gateVal").textContent = S.gatesOn ? "ON" : "OFF";
+  document.getElementById("rotVal").textContent = S.autoRotate ? "auto" : "stop";
+  document.getElementById("hoverVal").textContent = S.hover !== null ? `atom ${S.hover} (d${S.atoms[S.hover].depth})` : "—";
+  document.getElementById("overlayNote").textContent = `${S.atoms.length} atoms · 3 levels · Rydberg gates`;
+  document.getElementById("atomsVal").textContent = S.atoms.length;
+  document.getElementById("nSlider").value = S.atoms.length;
+  renderScene(); renderProj();
+}
+function rebuild() { const b = buildAtoms(); S.atoms = b.atoms; S.gates = b.gates; S.hover = null; updateReadouts(); }
+document.getElementById("nSlider").addEventListener("input", e => { S.n = parseInt(e.target.value); rebuild(); });
+document.getElementById("gateSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.gatesOn = b.dataset.g === "1"; document.querySelectorAll("#gateSeg button").forEach(x => x.classList.toggle("active", x === b)); updateReadouts(); });
+document.getElementById("rotSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.autoRotate = b.dataset.r === "auto"; document.querySelectorAll("#rotSeg button").forEach(x => x.classList.toggle("active", x === b)); updateReadouts(); });
+document.getElementById("resetBtn").addEventListener("click", () => { S.rotY = 0.5; updateReadouts(); });
+sceneCv.addEventListener("mousemove", e => {
+  const rect = sceneCv.getBoundingClientRect(), mx = e.clientX-rect.left, my = e.clientY-rect.top;
+  const { w, h } = fitCanvas(sceneCv, sctx), cx0 = w/2, cy0 = h/2+10, viewScale = Math.min(w,h)/4.6;
+  let best = null, bestDist = 24;
+  S.atoms.forEach(a => { const pr = project(a, S.rotY), x = cx0+pr.sx*viewScale, y = cy0+pr.sy*viewScale, dist = Math.hypot(mx-x,my-y); if (dist < bestDist) { bestDist = dist; best = a.id; } });
+  S.hover = best; updateReadouts();
+});
+sceneCv.addEventListener("mouseleave", () => { S.hover = null; updateReadouts(); });
+sceneCv.addEventListener("mousedown", () => {});
+sceneCv.addEventListener("mousemove", e => { if (e.buttons === 1) { const rect = sceneCv.getBoundingClientRect(); S.rotY += (e.movementX / rect.width) * Math.PI; S.autoRotate = false; document.querySelectorAll("#rotSeg button").forEach(x => x.classList.toggle("active", x.dataset.r === "0")); updateReadouts(); } });
+window.addEventListener("resize", () => { renderScene(); renderProj(); });
+setInterval(() => { if (S.autoRotate) { S.rotY += 0.004; renderScene(); renderProj(); } }, 40);
+rebuild();
+</script>
+</body>
+</html>
