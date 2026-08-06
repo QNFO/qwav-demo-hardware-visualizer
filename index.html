@@ -112,14 +112,16 @@ function buildAtoms() {
   let nextId = 1;
   (function place(parent, depth, slot) {
     if (depth >= 3) return;
-    const ang = slot * 2.1;
-    const r = 1.0 * (depth + 1);
-    const x = parent.x + r * Math.cos(ang) * (depth % 2 === 0 ? 1 : 0.6);
-    const y = parent.y + r * Math.sin(ang) * 0.5;
-    const z = parent.z + (depth % 3 === 0 ? 0.5 : -0.3) * depth;
-    const atom = { x, y, z, depth: depth + 1, id: nextId, parent: parent.id };
-    S.atoms.push(atom); nextId++;
-    for (let k = 0; k < 3; k++) place(atom, depth + 1, slot * 3 + k);
+    for (let k = 0; k < 3; k++) {
+      const ang = (slot * 3 + k) * 2.1;
+      const r = 1.0 * (depth + 1);
+      const x = parent.x + r * Math.cos(ang) * (depth % 2 === 0 ? 1 : 0.6);
+      const y = parent.y + r * Math.sin(ang) * 0.5;
+      const z = parent.z + (depth % 3 === 0 ? 0.5 : -0.3) * depth;
+      const atom = { x, y, z, depth: depth + 1, id: nextId, parent: parent.id };
+      S.atoms.push(atom); nextId++;
+      place(atom, depth + 1, slot * 3 + k);
+    }
   })(S.atoms[0], 0, 0);
 
   // Build gates (edges between parent-child with decorations)
