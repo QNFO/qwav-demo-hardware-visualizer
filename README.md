@@ -1,3 +1,5 @@
+> **Archived 2026-11-09 (REPO-CONSOLIDATION-1).** This repository is read-only. Its content now lives in QNFO/qwav-demos, folder `qwav-demo-hardware-visualizer/` (full history). Plan: rwnq8/agent-operating-system `REPOSITORIES.md`.
+
 # Hardware Pathway Visualizer — 40-Atom Neutral Atom Tree Lattice (Artifact A5)
 
 **Status:** ✅ LIVE — deployed 2026-08-04 | **Enhanced:** 2026-08-06
